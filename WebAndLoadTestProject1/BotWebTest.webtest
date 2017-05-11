@@ -1,0 +1,106 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<WebTest Name="BotWebTest" Id="72febeeb-f240-4cc3-9d59-bd1f18002f87" Owner="" Priority="2147483647" Enabled="True" CssProjectStructure="" CssIteration="" Timeout="0" WorkItemIds="" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010" Description="" CredentialUserName="" CredentialPassword="" PreAuthenticate="True" Proxy="default" StopOnError="False" RecordedResultFile="" ResultsLocale="">
+  <Items>
+    <Condition UniqueStringId="8ca2d21b-123a-4cc6-9cdb-4c611fe648aa">
+      <ConditionalRule Classname="HelperLib.LoggingStorageCheckRule, HelperLib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" DisplayName="LoggingStorageCheckRule" Description="">
+        <RuleParameters>
+          <RuleParameter Name="StorageAccountName" Value="{{AzureStorageAccountName}}" />
+          <RuleParameter Name="StorageAccountKey" Value="{{AzureStorageAccountSecret}}" />
+        </RuleParameters>
+      </ConditionalRule>
+      <Then />
+      <Else />
+    </Condition>
+    <Loop UniqueStringId="f51ad5ef-3abb-47e1-bdc0-424e94825599">
+      <ConditionalRule Classname="Microsoft.VisualStudio.TestTools.WebTesting.Rules.ContextParameterExistenceRule, Microsoft.VisualStudio.QualityTools.WebTestFramework, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" DisplayName="Context Parameter Exists" Description="Test whether or not the specified context parameter exists in the current context." MaxIterations="10" AdvanceDataCursors="False">
+        <RuleParameters>
+          <RuleParameter Name="ContextParameterName" Value="ConvID" />
+          <RuleParameter Name="CheckForExistence" Value="False" />
+        </RuleParameters>
+      </ConditionalRule>
+      <Items>
+        <Request Method="POST" Guid="3932ad06-5d3f-4395-8cc6-0813734f2c11" Version="1.1" Url="{{BaseUrl}}" ThinkTime="2" Timeout="300" ParseDependentRequests="True" FollowRedirects="True" RecordResult="True" Cache="False" ResponseTimeGoal="0" Encoding="utf-8" ExpectedHttpStatusCode="0" ExpectedResponseUrl="" ReportingName="" IgnoreHttpStatusCode="False">
+          <Headers>
+            <Header Name="Authorization" Value="{{AuthHeader}}" />
+          </Headers>
+          <ExtractionRules>
+            <ExtractionRule Classname="HelperLib.JsonExtractionRule, HelperLib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" VariableName="ConvID" DisplayName="JSON Extraction Rule" Description="Extracts the specified JSON value from an object.">
+              <RuleParameters>
+                <RuleParameter Name="Name" Value="conversationId" />
+              </RuleParameters>
+            </ExtractionRule>
+          </ExtractionRules>
+          <FormPostHttpBody />
+        </Request>
+      </Items>
+    </Loop>
+    <Condition UniqueStringId="673523df-dc72-4d62-91b6-ab6f9a05439f">
+      <ConditionalRule Classname="Microsoft.VisualStudio.TestTools.WebTesting.Rules.ContextParameterExistenceRule, Microsoft.VisualStudio.QualityTools.WebTestFramework, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" DisplayName="Context Parameter Exists" Description="Test whether or not the specified context parameter exists in the current context.">
+        <RuleParameters>
+          <RuleParameter Name="ContextParameterName" Value="ConvID" />
+          <RuleParameter Name="CheckForExistence" Value="True" />
+        </RuleParameters>
+      </ConditionalRule>
+      <Then>
+        <Items>
+          <Request Method="POST" Guid="5edd1fc8-e397-4327-8566-eb71ba36f28e" Version="1.1" Url="{{BaseUrl}}/{{ConvID}}/activities" ThinkTime="0" Timeout="15" ParseDependentRequests="True" FollowRedirects="True" RecordResult="True" Cache="False" ResponseTimeGoal="0" Encoding="utf-8" ExpectedHttpStatusCode="0" ExpectedResponseUrl="" ReportingName="" IgnoreHttpStatusCode="False">
+            <Headers>
+              <Header Name="Authorization" Value="{{AuthHeader}}" />
+              <Header Name="Content-Type" Value="application/json" />
+            </Headers>
+            <ExtractionRules>
+              <ExtractionRule Classname="HelperLib.JsonExtractionRule, HelperLib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" VariableName="messageId" DisplayName="JSON Extraction Rule" Description="Extracts the specified JSON value from an object.">
+                <RuleParameters>
+                  <RuleParameter Name="Name" Value="id" />
+                </RuleParameters>
+              </ExtractionRule>
+            </ExtractionRules>
+            <StringHttpBody ContentType="application/json" InsertByteOrderMark="False">ewAiAHQAeQBwAGUAIgA6ACIAbQBlAHMAcwBhAGcAZQAiACwAIgB0AGUAeAB0ACIAOgAiAHsAewBUAGUAcwB0AC4AVABlAHMAdABEAGEAdABhACMAYwBzAHYALgBVAHQAdABlAHIAYQBuAGMAZQB9AH0AIgAsACAAIgBmAHIAbwBtACIAOgB7ACIAaQBkACIAOgAiAHQAZQBzAHQAIgAsACIAbgBhAG0AZQAiADoAIgB0AGUAcwB0ACIAfQB9AA==</StringHttpBody>
+          </Request>
+          <Loop UniqueStringId="d7a19a58-7fbd-4bb9-981e-f37de9890426">
+            <ConditionalRule Classname="Microsoft.VisualStudio.TestTools.WebTesting.Rules.StringComparisonRule, Microsoft.VisualStudio.QualityTools.WebTestFramework, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" DisplayName="String Comparison" Description="The condition is met when the provided string matches the content of the provided context parameter." MaxIterations="10" AdvanceDataCursors="False">
+              <RuleParameters>
+                <RuleParameter Name="ContextParameterName" Value="BotResponseReceived" />
+                <RuleParameter Name="ComparisonOperator" Value="Equals" />
+                <RuleParameter Name="Value" Value="false" />
+                <RuleParameter Name="IgnoreCase" Value="True" />
+                <RuleParameter Name="UseRegularExpression" Value="False" />
+              </RuleParameters>
+            </ConditionalRule>
+            <Items>
+              <Request Method="Get" Guid="326c8f40-495b-4f3a-85b7-eee83f9e95e2" Version="1.1" Url="{{BaseUrl}}/{{ConvID}}/activities" ThinkTime="3" Timeout="15" ParseDependentRequests="True" FollowRedirects="True" RecordResult="True" Cache="False" ResponseTimeGoal="0" Encoding="utf-8" ExpectedHttpStatusCode="0" ExpectedResponseUrl="" ReportingName="" IgnoreHttpStatusCode="False">
+                <Headers>
+                  <Header Name="Authorization" Value="{{AuthHeader}}" />
+                  <Header Name="Content-Type" Value="application/json" />
+                </Headers>
+                <ValidationRules>
+                  <ValidationRule Classname="HelperLib.JsonMessageIdValidationRule, HelperLib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" DisplayName="Json Message Id Validation Rule" Description="Extracts the specified JSON value from an object." Level="High" ExectuionOrder="BeforeDependents">
+                    <RuleParameters>
+                      <RuleParameter Name="Name" Value="id" />
+                      <RuleParameter Name="ContextVariableToValidate" Value="messageId" />
+                      <RuleParameter Name="ExpectedResult" Value="{{Test.TestData#csv.ExpectedResult}}" />
+                    </RuleParameters>
+                  </ValidationRule>
+                </ValidationRules>
+              </Request>
+            </Items>
+          </Loop>
+        </Items>
+      </Then>
+      <Else />
+    </Condition>
+  </Items>
+  <DataSources>
+    <DataSource Name="Test" Provider="Microsoft.VisualStudio.TestTools.DataSource.CSV" Connection="|DataDirectory|\TestData.csv">
+      <Tables>
+        <DataSourceTable Name="TestData#csv" SelectColumns="SelectOnlyBoundColumns" AccessMethod="Sequential" />
+      </Tables>
+    </DataSource>
+  </DataSources>
+  <ContextParameters>
+    <ContextParameter Name="BaseUrl" Value="https://dipabotconnector.azurewebsites.net/v3/conversations" />
+    <ContextParameter Name="AuthHeader" Value="Bearer REPLACE WITH TOKEN VALUE" />
+    <ContextParameter Name="AzureStorageAccountName" Value="thirustorageacc" />
+    <ContextParameter Name="AzureStorageAccountSecret" Value="02kzxSCluAB5PTRxcivDrQ/PZeZA0W5FgImRkMuRdCPTv+vqb5WHF1hejJIBPRatMrqoHxuTXKs27And457ADw==" />
+  </ContextParameters>
+</WebTest>
