@@ -21,9 +21,8 @@ This framework covers web and load testing approaches
 	    - Message ID
 	    - BOT ID
 	    - BOT Response Messages
-
-#### Custom Validation Rule
-- To validate the BOT response against the expected result
+- Custom Validation Rule
+    - To validate the BOT response against the expected result
 
 #### Test strategy
 - Involves following components
