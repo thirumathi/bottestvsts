@@ -17,3 +17,9 @@
 /JsonExtractionRule/obj
 /WebAndLoadTestProject1/bin/Debug
 /WebAndLoadTestProject1/obj/Debug
+/BotConnectorTestApp/obj/Release
+/BotCustomConnectorSvc/Areas/HelpPage
+/BotCustomConnectorSvc/obj/Release
+/BotCustomConnectorSvc/Properties/PublishProfiles
+/HelloWorldBot/obj/Release
+/WebAndLoadTestProject1/obj/Release

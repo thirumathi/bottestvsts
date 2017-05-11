@@ -41,7 +41,7 @@ namespace BotCustomConnectorSvc
 
     public static class CacheHelper
     {
-        static int cacheSize = 2000;
+        static int cacheSize = 20000;
         static StateDataDictionary stateDictionary = new StateDataDictionary(cacheSize);
         public static StateDataDictionary StateDictionary
         {

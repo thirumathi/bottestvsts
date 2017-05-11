@@ -89,7 +89,15 @@ namespace HelperLib
                                     int messageIdInt = int.Parse(messageIdStr[1]);
                                     if (!string.IsNullOrEmpty(activityInfo["text"].ToString()))
                                     {
-                                        activityDetails.Add(messageIdInt, new { id = activityInfo[Name].ToString(), fromId = activityInfo["from"]["id"], fromName = activityInfo["from"]["name"], text = activityInfo["text"], timestamp = activityInfo["timestamp"] });
+                                        activityDetails.Add(messageIdInt,
+                                            new
+                                            {
+                                                id = activityInfo[Name].ToString(),
+                                                fromId = activityInfo["from"]["id"],
+                                                fromName = activityInfo["from"]["name"],
+                                                text = activityInfo["text"],
+                                                timestamp = activityInfo["timestamp"]
+                                            });
                                     }
                                 }
                             }
@@ -99,6 +107,8 @@ namespace HelperLib
                             int userMessageIdInt = int.Parse(userMessageIdStr[1]);
                             int maxId = activityDetails.Max(k => k.Key);
                             int botMessageIdInt = maxId > userMessageIdInt ? maxId : (userMessageIdInt + 1);
+                            //string botMessageIdStr = string.Concat(Enumerable.Repeat("0", (7 - botMessageIdInt.ToString().Length))) + botMessageIdInt.ToString();
+                            //string botResponseMessageId = $"{userMessageIdStr[0]}|{botMessageIdStr}";
 
                             string convId = e.WebTest.Context[Constants.Context_ConvId].ToString();
 
@@ -125,10 +135,6 @@ namespace HelperLib
                                     e.Message += string.Format(", Bot Id validation {0}", e.IsValid ? "succeeded" : "failed");
                                 }
 
-                                e.WebTest.Context.Remove(Constants.Context_ConvId);
-                                e.WebTest.Context.Remove(Constants.Context_RetryCount);
-                                e.WebTest.Context.Remove(Constants.Context_MessageId);
-
                                 return;
                             }
                             else
@@ -143,9 +149,7 @@ namespace HelperLib
 
                                 if (retryCount == 10)
                                 {
-                                    e.WebTest.Context.Remove(Constants.Context_ConvId);
-                                    e.WebTest.Context.Remove(Constants.Context_RetryCount);
-                                    e.WebTest.Context.Remove(Constants.Context_MessageId);
+                                   
 
                                     ReportHelper.WriteLog(convId, activityDetails[userMessageIdInt].text.ToString(), ExpectedResult, "No response from bot,Failed", "No response from bot,Failed", 0);
                                     e.IsValid = false;
@@ -174,6 +178,16 @@ namespace HelperLib
         {
             e.IsMet = ReportHelper.Init(StorageAccountName, StorageAccountKey);
             e.Message = "Azure Storage " + (e.IsMet ? "" : "not") + "found";
+        }
+    }
+
+    public class ContextCleanupRule : ValidationRule
+    {
+        public override void Validate(object sender, ValidationEventArgs e)
+        {
+            e.WebTest.Context.Remove(Constants.Context_ConvId);
+            e.WebTest.Context.Remove(Constants.Context_RetryCount);
+            e.WebTest.Context.Remove(Constants.Context_MessageId);
         }
     }
 }

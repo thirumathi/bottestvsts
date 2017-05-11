@@ -85,6 +85,13 @@
               </Request>
             </Items>
           </Loop>
+          <Request Method="DELETE" Guid="2bd88968-b16a-4352-9c97-3a00e6e0f10d" Version="1.1" Url="{{BaseStateUrl}}/{{ConvID}}" ThinkTime="0" Timeout="300" ParseDependentRequests="True" FollowRedirects="True" RecordResult="True" Cache="False" ResponseTimeGoal="0" Encoding="utf-8" ExpectedHttpStatusCode="0" ExpectedResponseUrl="" ReportingName="" IgnoreHttpStatusCode="False">
+            <ValidationRules>
+              <ValidationRule Classname="HelperLib.ContextCleanupRule, HelperLib, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" DisplayName="ContextCleanupRule" Description="" Level="High" ExectuionOrder="BeforeDependents" />
+            </ValidationRules>
+            <StringHttpBody ContentType="" InsertByteOrderMark="False">
+            </StringHttpBody>
+          </Request>
         </Items>
       </Then>
       <Else />
@@ -100,7 +107,8 @@
   <ContextParameters>
     <ContextParameter Name="BaseUrl" Value="https://dipabotconnector.azurewebsites.net/v3/conversations" />
     <ContextParameter Name="AuthHeader" Value="Bearer REPLACE WITH TOKEN VALUE" />
-    <ContextParameter Name="AzureStorageAccountName" Value="thirustorageacc" />
-    <ContextParameter Name="AzureStorageAccountSecret" Value="02kzxSCluAB5PTRxcivDrQ/PZeZA0W5FgImRkMuRdCPTv+vqb5WHF1hejJIBPRatMrqoHxuTXKs27And457ADw==" />
+    <ContextParameter Name="AzureStorageAccountName" Value="dipavsts" />
+    <ContextParameter Name="AzureStorageAccountSecret" Value="pb3AST/fM7NO+dAKO2MZfvhPdFjiOeq1b4YolHsTiGHmcnH81RS+f31msQOdFRMytezWLcR2Y1Osyyx/+poeOQ==" />
+    <ContextParameter Name="BaseStateUrl" Value="https://dipabotconnector.azurewebsites.net/v3/botstate/emulator/conversations" />
   </ContextParameters>
 </WebTest>

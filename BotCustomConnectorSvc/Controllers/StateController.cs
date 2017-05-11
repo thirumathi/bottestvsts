@@ -23,6 +23,18 @@ namespace BotCustomConnectorSvc.Controllers
             return true;
         }
 
+        [HttpDelete]
+        [Route("conversations/{conversationId}")]
+        public string DeleteConv(string conversationId)
+        {
+            List<string> keys = CacheHelper.StateDictionary.Keys.Where(k => k.StartsWith(conversationId)).ToList();
+            foreach(string key in keys)
+            {
+                CacheHelper.StateDictionary.Remove(key);
+            }
+            return $"{keys.Count} items deleted";
+        }
+
         [HttpGet]
         [Route("conversations/{id}")]
         public string GetConversations(string id)
