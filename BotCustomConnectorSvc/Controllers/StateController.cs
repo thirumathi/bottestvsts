@@ -17,22 +17,31 @@ namespace BotCustomConnectorSvc.Controllers
     {
         [HttpDelete]
         [Route("conversations")]
-        public bool Delete()
+        public string Delete()
         {
-            CacheHelper.StateDictionary.Clear();
-            return true;
+            return CacheHelper.ClearAllConvStateData();
+        }
+
+        [HttpDelete]
+        [Route("users")]
+        public string DeleteUsers()
+        {
+            return CacheHelper.ClearConvStateData("test");
         }
 
         [HttpDelete]
         [Route("conversations/{conversationId}")]
         public string DeleteConv(string conversationId)
         {
-            List<string> keys = CacheHelper.StateDictionary.Keys.Where(k => k.StartsWith(conversationId)).ToList();
-            foreach(string key in keys)
-            {
-                CacheHelper.StateDictionary.Remove(key);
-            }
-            return $"{keys.Count} items deleted";
+            return CacheHelper.ClearConvStateData(conversationId);
+        }
+
+        [HttpDelete]
+        [Route("conversations/{conversationId}/{userId}")]
+        public string DeleteConv(string conversationId, string userId)
+        {
+            CacheHelper.ClearConvStateData($"{conversationId}_{userId}");
+            return CacheHelper.ClearConvStateData(conversationId);
         }
 
         [HttpGet]

@@ -4,24 +4,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.WindowsAzure.Storage.Table;
 
 namespace BotCustomConnectorSvc.Models
 {
-    public class Token
-    {
-        public string Token_type { get; set; }
-        public string Expires_in { get; set; }
-        public string Ext_expires_in { get; set; }
-        public string Access_token { get; set; }
-        public DateTime ExpiryUtc { get; set; }
-    }
-
-    public class App
-    {
-        public string AppKey { get; set; }
-        public string AppId { get; set; }
-    }
-
     public class Conversation
     {
         public string Id { get; set; }
@@ -34,6 +20,14 @@ namespace BotCustomConnectorSvc.Models
                 return activities;
             }
         }
+
+        public void Save()
+        {
+            foreach (var act in activities)
+            {
+                CacheHelper.WriteConversationActivityToStorage(this.Id, act.Value);
+            }
+        }
     }
 
     public class Conv
@@ -44,6 +38,7 @@ namespace BotCustomConnectorSvc.Models
         public string StreamUrl { get; set; }
     }
 
+    /*
     public class Conversations : IDictionary<string, Conversation>
     {
         private DictionaryEntry[] items;
@@ -247,6 +242,6 @@ namespace BotCustomConnectorSvc.Models
             return pair.Key;
         }
     }
-
+    */
 }
 

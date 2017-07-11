@@ -2,24 +2,22 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
+/.vs/BotTesting/v15
+/.vs/MyFirstProject/v15
+/.vs/WebAndLoadTestProject1/v15
 /BotConnectorTestApp/bin/Debug
 /BotConnectorTestApp/obj/Debug
 /BotCustomConnectorSvc/bin
-/BotCustomConnectorSvc/Content
-/BotCustomConnectorSvc/fonts
 /BotCustomConnectorSvc/obj/Debug
-/BotCustomConnectorSvc/Scripts
-/BotCustomConnectorSvc/Views
 /HelloWorldBot/bin
 /HelloWorldBot/obj/Debug
-/BotConnectorTestApp/obj/Debug
 /JsonExtractionRule/bin/Debug
-/JsonExtractionRule/obj
+/JsonExtractionRule/obj/Debug
+/packages
+/TestResults
 /WebAndLoadTestProject1/bin/Debug
-/WebAndLoadTestProject1/obj/Debug
+/WebAndLoadTestProject1/obj
 /BotConnectorTestApp/obj/Release
-/BotCustomConnectorSvc/Areas/HelpPage
 /BotCustomConnectorSvc/obj/Release
-/BotCustomConnectorSvc/Properties/PublishProfiles
 /HelloWorldBot/obj/Release
-/WebAndLoadTestProject1/obj/Release
+/JsonExtractionRule/obj/Release

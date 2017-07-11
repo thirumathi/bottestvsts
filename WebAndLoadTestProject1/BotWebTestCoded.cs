@@ -106,9 +106,6 @@ namespace WebAndLoadTestProject1
                     if ((this.Context.ValidationLevel >= Microsoft.VisualStudio.TestTools.WebTesting.ValidationLevel.High))
                     {
                         JsonMessageIdValidationRule validationRule1 = new JsonMessageIdValidationRule();
-                        validationRule1.Name = "id";
-                        validationRule1.ContextVariableToValidate = Constants.Context_MessageId;
-                        validationRule1.ExpectedResult = this.Context["DataSource1.TestData#csv.ExpectedResult"].ToString();
                         request2.ValidateResponse += new EventHandler<ValidationEventArgs>(validationRule1.Validate);
                     }
                     yield return request2;

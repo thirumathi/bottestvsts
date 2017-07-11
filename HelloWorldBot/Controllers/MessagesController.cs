@@ -24,13 +24,16 @@ namespace HelloWorldBot
         {
             try
             {
-                if (activity.Type == ActivityTypes.Message)
+                using (TraceHelper.Trace("MessagesController.Post", activity, LogOptions.Entry))
                 {
-                    await Conversation.SendAsync(activity, () => new RootDialog().DefaultIfException());
-                }
-                else
-                {
-                    await HandleSystemMessage(activity);
+                    if (activity.Type == ActivityTypes.Message)
+                    {
+                        await Conversation.SendAsync(activity, () => new RootDialog().DefaultIfException());
+                    }
+                    else
+                    {
+                        await HandleSystemMessage(activity);
+                    }
                 }
             }
             catch (Exception ex)

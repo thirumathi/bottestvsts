@@ -8,7 +8,7 @@
           <TestDirectory useLoadContext="true" />
         </AssemblyResolution>
       </UnitTestRunConfig>
-      <WebTestRunConfiguration testTypeId="4e7599fa-5ecb-43e9-a887-cd63cf72d207" simulateThinkTimes="true" runUntilDataExhausted="true">
+      <WebTestRunConfiguration testTypeId="4e7599fa-5ecb-43e9-a887-cd63cf72d207" runUntilDataExhausted="true">
         <Browser name="Internet Explorer 9.0" MaxConnections="6">
           <Headers>
             <Header name="User-Agent" value="Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)" />

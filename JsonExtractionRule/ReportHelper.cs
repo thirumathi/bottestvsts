@@ -18,14 +18,15 @@ namespace HelperLib
         static string partitionKey;
         static CloudTableClient tableClient;
         static CloudTable table;
+        private static int rowKey = 0;
 
-        public static bool Init(string azureStoragAccount, string azureStorageSecret)
+        public static bool Init(string azureStoragAccount, string azureStorageSecret, string testName)
         {
             if (!storageExists && !string.IsNullOrEmpty(azureStoragAccount) && !string.IsNullOrEmpty(azureStorageSecret))
             {
                 account = new CloudStorageAccount(new StorageCredentials(azureStoragAccount, azureStorageSecret), true);
 
-                partitionKey = DateTime.Now.ToString("dd_MM_yyyy_hh_mm_ss");
+                partitionKey = DateTime.Now.ToString("dd_MM_yyyy_hh_mm_ss")+$"_{testName}";
                 tableClient = account.CreateCloudTableClient();
 
                 // Create the table if it doesn’t exist. 
@@ -36,17 +37,31 @@ namespace HelperLib
 
             return storageExists;
         }
-            public static void WriteLog(string condId, string message, string expectedResponse, string actualResponse, string status, double duration)
+            public static void WriteLog(string convId, string message, string messageId, string userId, string expectedResponse, string actualResponse, string status, string match, string duration, string activityCount, string businessArea = default(string), string luisQnA = default(string))
         {
             if (storageExists)
             {
-                LogEntity logEntity = new LogEntity(partitionKey, condId) { Message = message, ExpectedResult = expectedResponse, ActualResult = actualResponse, Status = status, Duration = duration, Timestamp = DateTime.UtcNow };
+                LogEntity logEntity = new LogEntity(partitionKey, convId)
+                {
+                    BusinessArea  =  businessArea,
+                    LuisQnA = luisQnA,
+                    Message = message,
+                    ExpectedResult = expectedResponse,
+                    ActualResult = actualResponse,
+                    Status = status,
+                    Match = match,
+                    Duration = string.IsNullOrEmpty(duration) ? 0 : double.Parse(duration) ,
+                    Timestamp = DateTime.UtcNow,
+                    ActivityCount = activityCount,
+                    MessageId = messageId,
+                    UserId = userId
+                };
 
                 // Create the TableOperation that inserts the customer entity. 
-                TableOperation insertOperation = TableOperation.Insert(logEntity);
+                TableOperation insertOperation = TableOperation.InsertOrReplace(logEntity);
 
                 // Execute the insert operation. 
-                table.Execute(insertOperation);
+                table.ExecuteAsync(insertOperation);
             }
         }
 
@@ -55,8 +70,11 @@ namespace HelperLib
             public LogEntity(string partitionKey, string convId)
             {
                 this.PartitionKey = partitionKey;
-                this.RowKey = convId;
+                this.RowKey = (++rowKey).ToString();
+                this.ConversationId = convId;
             }
+
+            public string ConversationId { get; set; }
 
             public string Message { get; set; }
 
@@ -66,7 +84,19 @@ namespace HelperLib
 
             public string Status { get; set; }
 
+            public string Match { get; set; }
+
             public double Duration { get; set; }
+
+            public string BusinessArea { get; set; }
+
+            public string LuisQnA { get; set; }
+
+            public string ActivityCount { get; set; }
+
+            public string MessageId { get; set; }
+
+            public string UserId { get; set; }
         }
     }
 }

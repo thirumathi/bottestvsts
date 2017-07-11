@@ -25,29 +25,10 @@ namespace BotCustomConnectorSvc.Models
         }
     }
 
-
-    public class Data
-    {
-        [JsonProperty(PropertyName = "DialogState")]
-        public string DialogState { get; set; }
-
-        [JsonProperty(PropertyName = "ResumptionContext")]
-        public ResumptionContext ResumptionContext { get; set; }
-
-        public Data()
-        { }
-
-        public Data(string dialogState = default(string), ResumptionContext resumptionContext = default(ResumptionContext))
-        {
-            DialogState = dialogState;
-            ResumptionContext = resumptionContext;
-        }
-    }
-
     public class StateData
     {
-        [JsonProperty(PropertyName = "Data")]
-        public Data Data { get; set; }
+        [JsonProperty(PropertyName = "data")]
+        public StateDataDictionary Data { get; set; }
 
         [JsonProperty(PropertyName = "eTag")]
         public string Etag { get; set; }
@@ -55,24 +36,29 @@ namespace BotCustomConnectorSvc.Models
         public StateData()
         { }
 
-        public StateData(Data data = default(Data), string etag = default(string))
+        public StateData(StateDataDictionary data = default(StateDataDictionary), string etag = default(string))
         {
             Data = data;
             Etag = etag;
         }
     }
 
-    public class StateDataDictionary : IDictionary<string, StateData>
+    public class StateDataDictionary : IDictionary<string, object>
     {
         private DictionaryEntry[] items;
         private Int32 ItemsInUse = 0;
+
+        public StateDataDictionary()
+        {
+            items = new DictionaryEntry[100];
+        }
 
         public StateDataDictionary(Int32 numItems)
         {
             items = new DictionaryEntry[numItems];
         }
 
-        public StateData this[string key]
+        public object this[string key]
         {
             get
             {
@@ -119,14 +105,14 @@ namespace BotCustomConnectorSvc.Models
                 return keys;
             }
         }
-        public ICollection<StateData> Values
+        public ICollection<object> Values
         {
             get
             {
                 // Return an array where each item is a value.
-                StateData[] values = new StateData[ItemsInUse];
+                object[] values = new object[ItemsInUse];
                 for (Int32 n = 0; n < ItemsInUse; n++)
-                    values[n] = items[n].Value as StateData;
+                    values[n] = items[n].Value as object;
                 return values;
             }
         }
@@ -147,14 +133,14 @@ namespace BotCustomConnectorSvc.Models
             }
         }
 
-        public void Add(string key, StateData value)
+        public void Add(string key, object value)
         {
             if (ItemsInUse == items.Length)
                 throw new InvalidOperationException("The dictionary cannot hold any more items.");
             items[ItemsInUse++] = new DictionaryEntry(key, value);
         }
 
-        public void Add(KeyValuePair<string, StateData> item)
+        public void Add(KeyValuePair<string, object> item)
         {
             if (ItemsInUse == items.Length)
                 throw new InvalidOperationException("The dictionary cannot hold any more items.");
@@ -166,13 +152,13 @@ namespace BotCustomConnectorSvc.Models
             ItemsInUse = 0;
         }
 
-        public bool Contains(KeyValuePair<string, StateData> item)
+        public bool Contains(KeyValuePair<string, object> item)
         {
-            StateData value;
+            object value;
             if (!this.TryGetValue(item.Key, out value))
                 return false;
 
-            return EqualityComparer<StateData>.Default.Equals(value, item.Value);
+            return EqualityComparer<object>.Default.Equals(value, item.Value);
         }
 
         public bool ContainsKey(string key)
@@ -181,7 +167,7 @@ namespace BotCustomConnectorSvc.Models
             return this.TryGetIndexOfKey(key, out index);
         }
 
-        public void CopyTo(KeyValuePair<string, StateData>[] array, int arrayIndex)
+        public void CopyTo(KeyValuePair<string, object>[] array, int arrayIndex)
         {
             if (array == null)
             {
@@ -200,15 +186,20 @@ namespace BotCustomConnectorSvc.Models
 
             foreach (DictionaryEntry item in items)
             {
-                array[arrayIndex++] = new KeyValuePair<string, StateData>(item.Key.ToString(), item.Value as StateData);
+                array[arrayIndex++] = new KeyValuePair<string, object>(item.Key.ToString(), item.Value as object);
             }
 
         }
 
-        public IEnumerator<KeyValuePair<string, StateData>> GetEnumerator()
+        public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
         {
             foreach (DictionaryEntry entry in this.items)
-                yield return new KeyValuePair<string, StateData>(entry.Key.ToString(), entry.Value as StateData);
+            {
+                if (entry.Key != null)
+                {
+                    yield return new KeyValuePair<string, object>(entry.Key.ToString(), entry.Value as object);
+                }
+            }
         }
 
         public bool Remove(string key)
@@ -225,18 +216,18 @@ namespace BotCustomConnectorSvc.Models
             return false;
         }
 
-        public bool Remove(KeyValuePair<string, StateData> item)
+        public bool Remove(KeyValuePair<string, object> item)
         {
             return Remove(item.Key);
         }
 
-        public bool TryGetValue(string key, out StateData value)
+        public bool TryGetValue(string key, out object value)
         {
             int index = -1;
             value = null;
             if (this.TryGetIndexOfKey(key, out index))
             {
-                value = items[index].Value as StateData;
+                value = items[index].Value as object;
                 return true;
             }
 
@@ -260,7 +251,7 @@ namespace BotCustomConnectorSvc.Models
             return false;
         }
 
-        protected string GetItem(KeyValuePair<string, StateData> pair)
+        protected string GetItem(KeyValuePair<string, object> pair)
         {
             return pair.Key;
         }

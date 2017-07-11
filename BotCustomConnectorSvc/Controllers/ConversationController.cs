@@ -12,23 +12,30 @@ using System.Web.Mvc;
 using BotCustomConnectorSvc.Models;
 using System.Configuration;
 using System.Net;
+using Microsoft.ApplicationInsights.Channel;
+using Microsoft.ApplicationInsights;
+using BotCustomConnectorSvc.ErrorHandler;
+using BotCustomConnectorSvc.Helpers;
 
 namespace BotCustomConnectorSvc.Controllers
 {
     [RoutePrefix("v3/conversations")]
     public class ConversationController : Controller
-    {        
-        string botBaseAddress, appId, appKey, channelId = "emulator", botId;
+    {
+        TelemetryClient telemetry = new TelemetryClient();
 
-        App app;
-
-        public ConversationController()
+        [HttpDelete]
+        [Route("clearcache")]
+        public string Delete()
         {
-            botBaseAddress = ConfigurationManager.AppSettings["BotBaseAddress"];
-            appId = ConfigurationManager.AppSettings["AppId"];
-            appKey = ConfigurationManager.AppSettings["Appkey"];
-            botId = ConfigurationManager.AppSettings["BotId"];
-            app = new App() { AppId = appId, AppKey = appKey };
+           return CacheHelper.ClearAllConvData();
+        }
+
+        [HttpDelete]
+        [Route("{conversationId}")]
+        public string DeleteConv(string conversationId)
+        {
+            return CacheHelper.ClearConvData(conversationId);
         }
 
         /// <summary>
@@ -40,7 +47,8 @@ namespace BotCustomConnectorSvc.Controllers
         public object Post()
         {
             var conversationId = Guid.NewGuid().ToString().Replace("-", "");
-            return JsonConvert.DeserializeObject<object>($"{{\"conversationId\":\"{conversationId}\",\"token\":\"{conversationId}\",\"expires_in\":1.7976931348623157e+308,\"streamUrl\":\"\"}}");
+            return JsonConvert.DeserializeObject<object>(
+                $"{{\"conversationId\":\"{conversationId}\",\"token\":\"{conversationId}\",\"expires_in\":1.7976931348623157e+308,\"streamUrl\":\"\"}}");
         }
 
         [HttpGet]
@@ -53,11 +61,15 @@ namespace BotCustomConnectorSvc.Controllers
         [HttpGet]
         [Route("{conversationId}/activities")]
         [Route("{conversationId}/activities/{watermark}")]
-        
+
         public string GetData(string conversationId, string watermark = "0")
         {
             Conversation conv = CacheHelper.GetConversation(conversationId, int.Parse(watermark));
-            return Newtonsoft.Json.JsonConvert.SerializeObject(new { activities = conv.Activities.Values.ToList<Activity>(), watermark = conv.Activities.Count > 0 ? conv.Activities.Keys.Max() : 0 });
+            return Newtonsoft.Json.JsonConvert.SerializeObject(new
+            {
+                activities = conv.Activities.Values.ToList<Activity>(),
+                watermark = conv.Activities.Count > 0 ? conv.Activities.Keys.Max() : 0
+            });
         }
 
         /// <summary>
@@ -69,67 +81,96 @@ namespace BotCustomConnectorSvc.Controllers
 
         [HttpPost]
         [Route("{conversationId}/activities")]
-        public async Task<object> Post(string conversationId, [System.Web.Http.FromBody]Activity activity)
+        public async Task<object> Post(string conversationId, [System.Web.Http.FromBody] Activity activity)
         {
             if (activity != null)
             {
-                activity.ChannelId = channelId;
-                activity.ChannelData = new Dictionary<string, string>()
-                {
-                    {"clientActivityId", Guid.NewGuid().ToString().Replace("-", "")}
-                };
-                activity.Conversation = new ConversationAccount()
-                {
-                    Id = conversationId
-                };
-                activity.Locale = "en-US";
-                activity.ServiceUrl = $"{this.ControllerContext.HttpContext.Request.Url.Scheme}://{this.ControllerContext.HttpContext.Request.Url.Authority}";
-                activity.Recipient = new ChannelAccount(botId, "Bot");
-                activity.Timestamp = DateTime.Now.ToUniversalTime();
+                CacheHelper.GetActivityId(conversationId, activity);
+                activity.Conversation = new ConversationAccount() { Id = conversationId };
+                CacheHelper.WriteConversationActivityToStorage(conversationId, activity);
 
-                CacheHelper.UpdateConversation(conversationId, activity);                
-                await PostToBot(conversationId, activity);
- 
+                if (Helper.PostToBotEnabled && string.IsNullOrEmpty(activity.ReplyToId))
+                {
+                    bool status = await PostToBot(conversationId, activity);
+
+                    if (!status)
+                    {
+                        Response.StatusCode = 500;
+                        return Newtonsoft.Json.JsonConvert.DeserializeObject<object>($"{{\"id\":\"Post to bot failed\"}}");
+                    }
+                }
+
+                Response.StatusCode = 200;
                 return Newtonsoft.Json.JsonConvert.DeserializeObject<object>($"{{\"id\":\"{activity.Id}\"}}");
             }
-
+            
             return null;
         }
 
         [HttpPost]
         [Route("{conversationId}/activities/{activityId}")]
-        public string Post(string conversationId, string activityId, [System.Web.Http.FromBody]Activity activity)
+        public string Post(string conversationId, string activityId, [System.Web.Http.FromBody] Activity activity)
         {
-            activity.Timestamp = DateTime.Now.ToUniversalTime();
-            CacheHelper.UpdateConversation(conversationId, activity);
-
-            var res = new Dictionary<string, string>()
+            if (activity.Timestamp == DateTime.MinValue)
             {
-                {"id",  activity.Id}
-            };
-            
-            return Newtonsoft.Json.JsonConvert.SerializeObject(res);
+                activity.Timestamp = DateTime.UtcNow;
+            }
+
+            if (string.IsNullOrEmpty(activity.Id))
+            {
+                CacheHelper.GetActivityId(conversationId, activity);
+            }
+
+            if (activity.InternalId == 0)
+            {
+                activity.InternalId = int.Parse(activity.Id.Split('|')[1]);
+            }
+
+            if (activity.Conversation == null || string.IsNullOrEmpty(activity.Conversation.Id))
+            {
+                activity.Conversation = new ConversationAccount() { Id = conversationId };
+            }
+
+            CacheHelper.WriteConversationActivityToStorage(conversationId, activity);
+
+            //var res = new Dictionary<string, string>()
+            //{
+            //    {"id", activity.Id}
+            //};
+
+            //return Newtonsoft.Json.JsonConvert.SerializeObject(res);
+            return $"{{\"id\":\"{activity.Id}\"}}";
         }
 
-        private async Task PostToBot(string conversationId, Activity activity)
-        {            
-            HttpClient _client = new HttpClient { BaseAddress = new Uri(botBaseAddress) };
-            _client.DefaultRequestHeaders.Accept.Clear();
-            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            string token = Helpers.GetJwtToken(app);
-            if (!string.IsNullOrEmpty(token))
+        private async Task<bool> PostToBot(string conversationId, Activity activity)
+        {
+            if (HttpContext.Request.Headers.AllKeys.Contains("BotBaseAddress") && HttpContext.Request.Headers.AllKeys.Contains("Authorization"))
             {
-                _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                string botBaseAddress = HttpContext.Request.Headers["BotBaseAddress"];
+                string authorization = HttpContext.Request.Headers["Authorization"];
+                authorization = authorization.Remove(0, 7);
+                try
+                {
+                    using (HttpClient _client = new HttpClient { BaseAddress = new Uri(botBaseAddress) })
+                    {
+                        _client.DefaultRequestHeaders.Accept.Clear();
+                        _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authorization);
+
+                        string jsonInput = JsonConvert.SerializeObject(activity);
+                        StringContent strContent = new StringContent(jsonInput, Encoding.UTF8, "application/json");
+                        // Send Message
+                        var response = await _client.PostAsync("api/messages", strContent);
+                        return response.StatusCode == System.Net.HttpStatusCode.OK;
+                    }
+                }
+                catch
+                {
+
+                }
             }
 
-            string jsonInput = JsonConvert.SerializeObject(activity);
-            StringContent strContent = new StringContent(jsonInput, Encoding.UTF8, "application/json");
-            // Send Message
-            var response = await _client.PostAsync("api/messages", strContent);            
-            if (response.StatusCode == System.Net.HttpStatusCode.OK)
-            {
-                string status = "Ok";
-            }
+            return false;
         }
     }
 }

@@ -2,120 +2,126 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Auth;
+using Microsoft.WindowsAzure.Storage.Table;
+using Microsoft.WindowsAzure.Storage.Table.Queryable;
 
 namespace BotCustomConnectorSvc
 {
-    public static class Helpers
+    public static class OldCacheHelper
     {
-        static Token token;
-        public static string GetJwtToken(App app)
+        static CloudStorageAccount account = default(CloudStorageAccount);
+        private static string partitionKey = default(string);
+        static CloudTableClient tableClient;
+        static CloudTable botStateTable, botConvTable, botErrorTable;
+        static bool storageExists = false;
+
+        static bool dataCleanupEnabled = bool.Parse(ConfigurationManager.AppSettings["DataCleanupEnabled"]);
+
+        static OldCacheHelper()
         {
-            if (string.IsNullOrEmpty(app.AppId) || string.IsNullOrEmpty(app.AppKey))
-            {
-                return string.Empty;
-            }
+            string azureStoragAccount = ConfigurationManager.AppSettings["AzureStorageAccount"];
+            string azureStorageSecret = ConfigurationManager.AppSettings["AzureStorageSecret"];
 
-            if (token == null || token.ExpiryUtc < DateTime.UtcNow)
+            if (!string.IsNullOrEmpty(azureStoragAccount) && !string.IsNullOrEmpty(azureStorageSecret))
             {
-                HttpClient _client = new HttpClient();
-                _client.DefaultRequestHeaders.Accept.Clear();
-                _client.BaseAddress = new Uri("https://login.microsoftonline.com/");
-                var content = new FormUrlEncodedContent(new[]
-                {
-                    new KeyValuePair<string, string>("grant_type", "client_credentials"),
-                    new KeyValuePair<string, string>("client_id", app.AppId),
-                    new KeyValuePair<string, string>("client_secret", app.AppKey),
-                    new KeyValuePair<string, string>("scope", "https://graph.microsoft.com/.default")
-                });
-                var response = _client.PostAsync("/botframework.com/oauth2/v2.0/token", content).Result;
-                token = JsonConvert.DeserializeObject<Token>(response.Content.ReadAsStringAsync().Result);
-                token.ExpiryUtc = DateTime.UtcNow.AddSeconds(3599);
-            }
+                account = new CloudStorageAccount(new StorageCredentials(azureStoragAccount, azureStorageSecret), true);
 
-            return token.Access_token;
-        }
-    }
+                partitionKey = DateTime.Now.ToString("dd_MM_yyyy_hh_mm_ss");
+                tableClient = account.CreateCloudTableClient();
 
-    public static class CacheHelper
-    {
-        static int cacheSize = 20000;
-        static StateDataDictionary stateDictionary = new StateDataDictionary(cacheSize);
-        public static StateDataDictionary StateDictionary
-        {
-            get
-            {
-                return stateDictionary;
+                //// Create the botStateTable if it doesn’t exist. 
+                //botStateTable = tableClient.GetTableReference("BotState");
+                //botStateTable.CreateIfNotExistsAsync();
+
+                //// Create the botStateTable if it doesn’t exist. 
+                //botConvTable = tableClient.GetTableReference("BotConversationData");
+                //botConvTable.CreateIfNotExistsAsync();
+
+                // Create the botStateTable if it doesn’t exist. 
+                botErrorTable = tableClient.GetTableReference("BotConnectorExceptionLog");
+                botErrorTable.CreateIfNotExistsAsync();
+                storageExists = true;
             }
         }
 
-        static Conversations conversations = new Conversations(cacheSize);
-        public static Conversations Conversations
+        public static int GetActivityId(string conversationId, Activity activity)
         {
-            get
-            {
-                return conversations;
-            }
-        }
+            Conversation conv = ReadConvFromStorage(conversationId);
 
-        public static int UpdateConversation(string conversationId, Activity activity)
-        {
-            Conversation conv = default(Conversation);
-
-            if (CacheHelper.Conversations.ContainsKey(conversationId))
+            if (conv == null)
             {
-                conv = CacheHelper.Conversations[conversationId];
-            }
-            else
-            {
-                conv = new Conversation() { Id = conversationId };
-                CacheHelper.Conversations.Add(conversationId, conv);
+                conv = new Conversation() {Id = conversationId};
             }
 
-            int sequence = conv.Activities.Count > 0 ? conv.Activities.Keys.Max(): 0;
+            int sequence = conv.Activities.Count > 0 ? conv.Activities.Keys.Max() : 0;
             activity.Id = $"{conversationId}|{++sequence}";
-            conv.Activities.Add(sequence, activity);
-
             return sequence;
         }
 
-        public static Conversation GetConversation(string conversationId, int watermark)
+        public static Activity GetConversationActivity(string conversationId, string activityId)
         {
-            Conversation conv = new Conversation();
+            Conversation conv = ReadConvFromStorage(conversationId);
 
-            if (CacheHelper.Conversations.ContainsKey(conversationId))
+            Activity outPut = null;
+
+            if (conv != null)
             {
-                conv = CacheHelper.Conversations[conversationId];
+                outPut = conv.Activities.Values.FirstOrDefault(act => act.Id == activityId && act.Delivered);
             }
 
-            if (watermark > 0)
+            return outPut;
+        }
+
+        public static Conversation GetConversation(string conversationId, bool everything = false, int watermark = 0)
+        {
+            Conversation conv = ReadConvFromStorage(conversationId);
+
+            Conversation outPut = new Conversation() {Id = conversationId};
+
+            if (conv != null)
             {
-                Conversation outPut = new Conversation() { Id = conversationId };
-                foreach (KeyValuePair<int, Activity> act in conv.Activities.Where(a => a.Key > watermark))
+                if (watermark > 0)
                 {
-                    outPut.Activities.Add(act.Key, act.Value);
+                    foreach (KeyValuePair<int, Activity> act in conv.Activities.Where(a => a.Key >= watermark))
+                    {
+                        if (everything || act.Value.Delivered)
+                        {
+                            outPut.Activities.Add(act.Key, act.Value);
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
                 }
+                else
+                {
+                    foreach (KeyValuePair<int, Activity> act in conv.Activities)
+                    {
+                        if (everything || act.Value.Delivered)
+                        {
+                            outPut.Activities.Add(act.Key, act.Value);
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
 
-                return outPut;
-            }
-            else
-            {
-                return conv;
-            }
+            return outPut;
         }
 
         private static void UpdateState(string key, StateData data)
-        {           
-            if (CacheHelper.StateDictionary.ContainsKey(key))
-            {
-                CacheHelper.StateDictionary[key] = data;
-            }
-            else
-            {
-                CacheHelper.StateDictionary.Add(key, data);
-            }
+        {
+            WriteStateToStorage(key, data);
         }
 
         public static void UpdateConversationState(string conversationId, StateData data)
@@ -136,13 +142,7 @@ namespace BotCustomConnectorSvc
 
         private static StateData GetStateData(string key)
         {
-            StateData stateData = new StateData();
-
-            if (CacheHelper.StateDictionary.ContainsKey(key))
-            {
-                stateData = CacheHelper.StateDictionary[key];
-            }
-
+            StateData stateData = ReadStateFromStorage(key);
             return stateData;
         }
 
@@ -161,5 +161,214 @@ namespace BotCustomConnectorSvc
         {
             return GetStateData(userId);
         }
+
+        public static string ClearAllConvData()
+        {
+            if (dataCleanupEnabled)
+            {
+                DeleteAllConvFromStorage();
+                return $"conversation data deleted";
+            }
+            else
+            {
+                return "Data cleanup disabled";
+            }
+        }
+
+        public static string ClearConvData(string convId)
+        {
+            if (dataCleanupEnabled)
+            {
+                DeleteConversationFromStorage(convId);
+                return $"conversation data deleted";
+            }
+            else
+            {
+                return "Data cleanup disabled";
+            }
+        }
+
+        public static string ClearAllConvStateData()
+        {
+            if (dataCleanupEnabled)
+            {
+                ClearAllConvStateData();
+                return $"State Data deleted";
+            }
+            else
+            {
+                return "Data cleanup disabled";
+            }
+        }
+
+        public static string ClearConvStateData(string convId)
+        {
+            if (dataCleanupEnabled)
+            {
+                DeleteStateDataFromStorage(convId);
+                return "State data deleted";
+            }
+            else
+            {
+                return "Data cleanup disabled";
+            }
+        }
+
+        public static void WriteConversationActivityToStorage(string convId, Activity activity, int activityId)
+        {
+            Conversation conv = ReadConvFromStorage(convId);
+
+            if (conv == null)
+            {
+                conv = new Conversation() {Id = convId};
+            }
+
+            if (conv.Activities.ContainsKey(activityId))
+            {
+                conv.Activities[activityId] = activity;
+            }
+            else
+            {
+                conv.Activities.Add(activityId, activity);
+            }
+
+            Entity entity = new Entity(partitionKey, convId)
+            {
+                ETag = "*",
+                Data = Newtonsoft.Json.JsonConvert.SerializeObject(conv)
+            };
+
+            TableOperation operation = TableOperation.InsertOrMerge(entity);
+
+            // Execute the insert operation. 
+            botConvTable.ExecuteAsync(operation);
+        }
+
+        private static Conversation ReadConvFromStorage(string convId)
+        {
+            // Create the TableOperation that inserts the customer entity.
+            TableOperation retrieve = TableOperation.Retrieve(partitionKey, convId);
+            TableResult result = botConvTable.Execute(retrieve);
+
+            Conversation conversation = null;
+            if (result != null && result.Result != null)
+            {
+                DynamicTableEntity entity = result.Result as DynamicTableEntity;
+                conversation =
+                    Newtonsoft.Json.JsonConvert.DeserializeObject<Conversation>(entity.Properties["Data"].StringValue);
+            }
+
+            return conversation;
+        }
+
+        private static void DeleteAllConvFromStorage()
+        {
+            var entityPattern = new DynamicTableEntity();
+            entityPattern.PartitionKey = partitionKey;
+            entityPattern.ETag = "*";
+
+            botConvTable.ExecuteAsync(TableOperation.Delete(entityPattern));
+        }
+
+        private static void DeleteConversationFromStorage(string convId)
+        {
+            Entity entity = new Entity(partitionKey, convId) {ETag = "*"};
+            TableOperation delete = TableOperation.Delete(entity);
+            botConvTable.ExecuteAsync(delete);
+        }
+
+        private static void WriteStateToStorage(string key, StateData data)
+        {
+            // Create the TableOperation that inserts the customer entity.
+            TableOperation retrieve = TableOperation.Retrieve(partitionKey, key);
+            TableResult result = botStateTable.Execute(retrieve);
+
+            bool update = result != null && result.Result != null;
+
+            Entity entity = new Entity(partitionKey, key)
+            {
+                ETag = "*",
+                Data = Newtonsoft.Json.JsonConvert.SerializeObject(data)
+            };
+
+            TableOperation operation = update ? TableOperation.Replace(entity) : TableOperation.InsertOrMerge(entity);
+
+            // Execute the insert operation. 
+            botStateTable.ExecuteAsync(operation);
+        }
+
+        private static StateData ReadStateFromStorage(string key)
+        {
+            // Create the TableOperation that inserts the customer entity.
+            TableOperation retrieve = TableOperation.Retrieve(partitionKey, key);
+            TableResult result = botStateTable.Execute(retrieve);
+
+            StateData stateData = null;
+            if (result != null && result.Result != null)
+            {
+                DynamicTableEntity entity = result.Result as DynamicTableEntity;
+                stateData = Newtonsoft.Json.JsonConvert.DeserializeObject<StateData>(entity.Properties["Data"]
+                    .StringValue);
+            }
+
+            return stateData;
+        }
+
+        private static void DeleteAllStateDataStorage()
+        {
+            var entityPattern = new DynamicTableEntity();
+            entityPattern.PartitionKey = partitionKey;
+            entityPattern.ETag = "*";
+
+            botStateTable.ExecuteAsync(TableOperation.Delete(entityPattern));
+        }
+
+        private static void DeleteStateDataFromStorage(string key)
+        {
+            Entity entity = new Entity(partitionKey, key) {ETag = "*"};
+            TableOperation delete = TableOperation.Delete(entity);
+            botStateTable.ExecuteAsync(delete);
+        }
+
+        public static void WriteLogToStorage(string path, Exception ex)
+        {
+            ExcpetionEntity entity = new ExcpetionEntity(partitionKey)
+            {
+                Path = path,
+                Message = ex.Message,
+                StackTrace = ex.StackTrace
+            };
+
+            TableOperation operation = TableOperation.InsertOrMerge(entity);
+
+            // Execute the insert operation. 
+            botErrorTable.ExecuteAsync(operation);
+        }
+    }
+
+    public class Entity : TableEntity
+    {
+        public Entity(string partitionKey, string convId)
+        {
+            this.PartitionKey = partitionKey;
+            this.RowKey = convId;
+        }
+
+        public string Data { get; set; }
+    }
+
+    public class ExcpetionEntity : TableEntity
+    {
+        public ExcpetionEntity(string partitionKey)
+        {
+            this.PartitionKey = partitionKey;
+            this.RowKey = Guid.NewGuid().ToString();
+        }
+
+        public string Path { get; set; }
+
+        public string Message { get; set; }
+
+        public string StackTrace { get; set; }
     }
 }

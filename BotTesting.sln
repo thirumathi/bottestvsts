@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.26403.7
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAndLoadTestProject1", "WebAndLoadTestProject1\WebAndLoadTestProject1.csproj", "{8EAA7BEA-F3B0-4E01-8060-6DEF104CEFC8}"
 EndProject
@@ -97,28 +97,5 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{8EAA7BEA-F3B0-4E01-8060-6DEF104CEFC8} = {55D0AB5C-781E-41F7-8B1E-57FA41FCE992}
 		{661BF95C-FBB5-4AE4-B41D-6514010DAEE8} = {55D0AB5C-781E-41F7-8B1E-57FA41FCE992}
-	EndGlobalSection
-	GlobalSection(TeamFoundationVersionControl) = preSolution
-		SccNumberOfProjects = 6
-		SccEnterpriseProvider = {4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}
-		SccTeamFoundationServer = https://tfs2013.accenture.com/tfs/tfs2013tpc05
-		SccLocalPath0 = .
-		SccProjectUniqueName1 = WebAndLoadTestProject1\\WebAndLoadTestProject1.csproj
-		SccProjectTopLevelParentUniqueName1 = BotTesting.sln
-		SccProjectName1 = WebAndLoadTestProject1
-		SccLocalPath1 = WebAndLoadTestProject1
-		SccProjectUniqueName2 = JsonExtractionRule\\HelperLib.csproj
-		SccProjectTopLevelParentUniqueName2 = BotTesting.sln
-		SccProjectName2 = JsonExtractionRule
-		SccLocalPath2 = JsonExtractionRule
-		SccProjectUniqueName3 = BotConnectorTestApp\\BotConnectorTestApp.csproj
-		SccProjectName3 = BotConnectorTestApp
-		SccLocalPath3 = BotConnectorTestApp
-		SccProjectUniqueName4 = HelloWorldBot\\HelloWorldBot.csproj
-		SccProjectName4 = HelloWorldBot
-		SccLocalPath4 = HelloWorldBot
-		SccProjectUniqueName5 = BotCustomConnectorSvc\\BotCustomConnectorSvc.csproj
-		SccProjectName5 = BotCustomConnectorSvc
-		SccLocalPath5 = BotCustomConnectorSvc
 	EndGlobalSection
 EndGlobal

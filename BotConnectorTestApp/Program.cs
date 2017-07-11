@@ -15,6 +15,7 @@ namespace BotConnectorTestApp
 {
     class Program
     {
+        static string botBaseAddress = ConfigurationManager.AppSettings.Get("BotBaseUrl");
         static string botSvcAddress = ConfigurationManager.AppSettings.Get("BotSvcAddress");
         static string botId = ConfigurationManager.AppSettings.Get("BotId");
         static int watermark = 0, prevWatermark = 0;
@@ -22,13 +23,25 @@ namespace BotConnectorTestApp
 
         static void Main(string[] args)
         {
-            // Getting conversation ID from dummy service
-            string conversationId = GetConversationId();
+            try
+            {
+                string conversationId = GetConversationId();
 
-            var task1 = Task.Factory.StartNew(() => CheckMessages(conversationId));
-            var task2 = Task.Factory.StartNew(() => Run(conversationId));
+                var task1 = Task.Factory.StartNew(() => CheckMessages(conversationId));
+                var task2 = Task.Factory.StartNew(() => Run(conversationId));
 
-            Task.WaitAll(task1, task2);
+                Task.WaitAll(task1, task2);
+
+                DeleteConversationMessages(conversationId);
+                DeleteStateData(conversationId);
+
+                Console.ReadLine();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                Console.ReadLine();
+            }
         }
 
         static async Task Run(string conversationId)
@@ -36,7 +49,7 @@ namespace BotConnectorTestApp
             string message;
             while (!string.IsNullOrEmpty(message = Console.ReadLine()))
             {
-                await PostMessageToBot(conversationId, message);
+                        await PostMessageToBot(conversationId, message);
             }
 
             quit = true;
@@ -66,41 +79,71 @@ namespace BotConnectorTestApp
 
         private static async Task<bool> PostMessageToBot(string conversationId, string msg)
         {
-            // Sending interactions and checking for accepted
-            HttpClient _client = new HttpClient { BaseAddress = new Uri(botSvcAddress) };
-            _client.DefaultRequestHeaders.Accept.Clear();
-            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));            
-            var activity = new Activity
+            try
             {
-                ChannelData = new Dictionary<string, string>()
+                // Sending interactions and checking for accepted
+                HttpClient _client = new HttpClient { BaseAddress = new Uri(botSvcAddress) };
+                _client.DefaultRequestHeaders.Accept.Clear();
+                _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                _client.DefaultRequestHeaders.Add("BotBaseAddress", botBaseAddress);
+                _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test");
+                var activity = new Activity
                 {
-                    {"clientActivityId", Guid.NewGuid().ToString().Replace("-", "")}
-                },
-                ChannelId = "custom",
-                Conversation = new ConversationAccount()
-                {
-                    Id = conversationId
-                },
-                From = new ChannelAccount("default-user", "User"),
-                Id = Guid.NewGuid().ToString().Replace("-", ""),
-                Locale = "en-US",
-                LocalTimestamp = DateTime.Now.ToLocalTime(),
-                Recipient = new ChannelAccount(botId, "Bot"),
-                //ServiceUrl = botSvcAddress,
-                Timestamp = DateTime.Now.ToUniversalTime(),
-                Text = msg,
-                Type = "message"
-            };
+                    ChannelData = new Dictionary<string, string>()
+                    {
+                        {"clientActivityId", Guid.NewGuid().ToString().Replace("-", "")}
+                    },
+                    ChannelId = "emulator",
+                    Conversation = new ConversationAccount()
+                    {
+                        Id = conversationId
+                    },
+                    From = new ChannelAccount("test", "test"),
+                    Locale = "en-US",
+                    LocalTimestamp = DateTime.Now.ToLocalTime(),
+                    Recipient = new ChannelAccount(botId, "Bot"),
+                    ServiceUrl = botSvcAddress,
+                    Timestamp = DateTime.Now.ToUniversalTime(),
+                    Text = msg,
+                    Type = "message"
+                };
 
-            string jsonInput = JsonConvert.SerializeObject(activity);
-            StringContent strContent = new StringContent(jsonInput, Encoding.UTF8, "application/json");
-            // Send Message
-            var response = await _client.PostAsJsonAsync($"v3/conversations/{conversationId}/activities", activity);
-            Trace.WriteLine(response.StatusCode);
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new ApplicationException(response.StatusCode.ToString());
+                //string jsonInput = JsonConvert.SerializeObject(activity);
+                //StringContent strContent = new StringContent(jsonInput, Encoding.UTF8, "application/json");
+                // Send Message
+                var response = await _client.PostAsJsonAsync($"v3/conversations/{conversationId}/activities", activity);
+                //Trace.WriteLine(response.StatusCode);
+                if (!response.IsSuccessStatusCode)
+                {
+                    string returnValue = response.Content.ReadAsStringAsync().Result;
+                    dynamic info = JsonConvert.DeserializeObject(returnValue);
+                    string activityId = info.id.ToString();
+
+                    activity.Id = activityId;
+
+                    _client = new HttpClient { BaseAddress = new Uri(botBaseAddress) };
+                    _client.DefaultRequestHeaders.Accept.Clear();
+                    _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                    response = await _client.PostAsJsonAsync($"api/messages", activity);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        if (info != null)
+                        {
+                            _client = new HttpClient { BaseAddress = new Uri(botSvcAddress) };
+                            response = await _client.PostAsJsonAsync($"v3/conversations/{conversationId}/activities/{activityId}",
+                                activity);
+                        }
+                    }
+                }
             }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+            
 
             return true;
         }
@@ -128,13 +171,47 @@ namespace BotConnectorTestApp
                 {
                     foreach (Activity a in conversation.Activities)
                     {
-                        Console.WriteLine(JsonConvert.SerializeObject(a));
-                        Console.WriteLine("----------------------------------");
+                        int actId = int.Parse(a.Id.Split('|')[1]);
+                        if (actId > watermark)
+                        {
+                            Console.WriteLine(JsonConvert.SerializeObject(a));
+                            Console.WriteLine("----------------------------------");
+                        }
                     }
 
                     watermark = lastWatermark;
                 }
             }
+        }
+
+        private static async void DeleteConversationMessages(string conversationId)
+        {
+            HttpClient _client = new HttpClient();
+            _client.DefaultRequestHeaders.Accept.Clear();
+            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            _client.BaseAddress = new Uri(ConfigurationManager.AppSettings.Get("BotSvcAddress"));
+            string url = $"v3/conversations/{conversationId}";
+
+            var response = _client.DeleteAsync(url).Result;
+
+            Console.WriteLine(response.Content.ReadAsStringAsync().Result);
+            Console.WriteLine("----------------------------------");
+
+        }
+
+        private static async void DeleteStateData(string conversationId)
+        {
+            HttpClient _client = new HttpClient();
+            _client.DefaultRequestHeaders.Accept.Clear();
+            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            _client.BaseAddress = new Uri(ConfigurationManager.AppSettings.Get("BotSvcAddress"));
+            string url = $"v3/botstate/emulator/conversations/{conversationId}/test";
+
+            var response = _client.DeleteAsync(url).Result;
+
+            Console.WriteLine(response.Content.ReadAsStringAsync().Result);
+            Console.WriteLine("----------------------------------");
+
         }
     }
 }
