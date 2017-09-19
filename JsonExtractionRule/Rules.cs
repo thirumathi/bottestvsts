@@ -65,125 +65,6 @@ namespace HelperLib
         }
     }
 
-    [DisplayName("Response Message Validation Rule")]
-    [Description("Response Message Validation Rule")]
-    public class ResponseMessageValidationRule : ValidationRule
-    {
-        public override void Validate(object sender, ValidationEventArgs e)
-        {
-            string convId = e.WebTest.Context[Constants.Context_ConvId].ToString();
-
-            string userMessageId = e.WebTest.Context[Constants.Context_MessageId].ToString();
-            string ExpectedResult = e.WebTest.Context[Constants.Context_ExpectedResult].ToString();
-            string LuisQnA = e.WebTest.Context[Constants.Context_LuisQnA].ToString();
-            string BusinessArea = e.WebTest.Context[Constants.Context_BusinessArea].ToString();
-
-            try
-            {
-                if (e.Response.BodyString != null)
-                {
-                    var json = e.Response.BodyString;
-
-                    var data = JObject.Parse(json);
-                    Dictionary<string, object> dataDictionary = data.ToObject<Dictionary<string, object>>();
-
-                    Dictionary<string, dynamic> activityDetails = new Dictionary<string, dynamic>();
-                    if (dataDictionary != null && dataDictionary.ContainsKey("activities"))
-                    {
-                        List<object> activities = ((JArray) dataDictionary["activities"]).ToList<object>();
-
-                        if (activities.Count > 0)
-                        {
-                            e.WebTest.Context[Constants.Context_ActivityCount] = activities.Count;
-
-                            foreach (var item in activities)
-                            {
-                                JObject activityInfo = item as JObject;
-                                if (activityInfo != null)
-                                {
-                                    string messageId = activityInfo["id"].ToString();
-                                    string text = activityInfo["text"].ToString();
-                                    if (!string.IsNullOrEmpty(text))
-                                    {
-                                        activityDetails.Add(messageId,
-                                            new
-                                            {
-                                                id = messageId,
-                                                fromId = activityInfo["from"]["id"],
-                                                fromName = activityInfo["from"]["name"],
-                                                text = text,
-                                                timestamp = activityInfo["timestamp"],
-                                                channel = activityInfo["channelId"],
-                                                replyTo = activityInfo["replyToId"] != null?
-                                                          activityInfo["replyToId"].ToString() : string.Empty
-                                            });
-                                    }
-                                }
-                            }
-
-                            dynamic botReplyActivity =
-                                activityDetails.Values.FirstOrDefault(
-                                    v => v.replyTo != null && v.replyTo.ToString().Contains(convId));
-
-                            if (botReplyActivity != null)
-                            {
-                                string botMessageId = botReplyActivity.id;
-                                e.WebTest.Context[Constants.Context_BotResponseReceived] = "true";
-                                DateTime requestTime = DateTime.Parse(activityDetails[userMessageId].timestamp.ToString());
-                                DateTime responseTime = DateTime.Parse(botReplyActivity.timestamp.ToString());
-                                double timeTaken = responseTime.Subtract(requestTime).TotalMilliseconds;
-
-                                string actualResult = botReplyActivity.text.ToString();
-                                bool testMatch =
-                                    ExpectedResult.Equals(actualResult, StringComparison.OrdinalIgnoreCase);
-                                string status = "succeeded";
-                                e.Message = $"Request [{userMessageId}] and response [{botMessageId}] validation " +
-                                            status;
-                                e.Message += string.Format(", Actual result {0} Expected result",
-                                    testMatch ? "matches" : "doesn't match");
-
-
-                                //ReportHelper.WriteLog(convId, activityDetails[userMessageId].text.ToString(), ExpectedResult, actualResult, status, testMatch.ToString(), timeTaken, botReplyActivity.channel.ToString(), BusinessArea, LuisQnA);
-
-                                e.WebTest.Context[Constants.Context_ActualResult] = actualResult;
-                                e.WebTest.Context[Constants.Context_TestMatch] = testMatch;
-                                e.WebTest.Context[Constants.Context_TestStatus] = true;
-                                e.WebTest.Context[Constants.Context_TestStatusMessage] = string.Empty;
-                                e.WebTest.Context[Constants.Context_Channel] = botReplyActivity.channel.ToString();
-                                e.WebTest.Context[Constants.Context_Duration] = timeTaken;
-                                return;
-                            }
-                            else
-                            {
-                                int retryCount = 0;
-                                if (e.WebTest.Context.ContainsKey(Constants.Context_RetryCount))
-                                {
-                                    retryCount = int.Parse(e.WebTest.Context[Constants.Context_RetryCount].ToString());
-                                }
-
-                                e.WebTest.Context[Constants.Context_RetryCount] = ++retryCount;
-
-                                if (retryCount == 10)
-                                {
-                                    e.IsValid = false;
-                                    //ReportHelper.WriteLog(convId, activityDetails[userMessageId].text.ToString(), ExpectedResult, "No response from bot", "Failed", bool.FalseString, 0);
-                                    e.WebTest.Context[Constants.Context_TestStatus] = false;
-                                    e.WebTest.Context[Constants.Context_BotResponseReceived] = "true";
-                                    e.WebTest.Context[Constants.Context_TestStatusMessage] = "No response from bot";
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                e.WebTest.Context[Constants.Context_TestStatus] = false;
-                e.Message = ex.Message;
-            }
-        }
-    }
-
     [DisplayName("Message Sent Validation Rule")]
     [Description("Extracts the specified JSON value from an object.")]
     public class JsonMessageSentValidationRule : ValidationRule
@@ -192,7 +73,7 @@ namespace HelperLib
         {
             if (e.Response.StatusCode == HttpStatusCode.OK)
             {
-                WebTestContext context = e.WebTest.Context;             
+                WebTestContext context = e.WebTest.Context;
 
                 context[Constants.Context_MessagePostedToBot] = true;
                 context[Constants.Context_TestStatus] = true;
@@ -203,7 +84,7 @@ namespace HelperLib
                     string jsonInput = context[Constants.Context_UserActivity].ToString();
                     Activity activity = JsonConvert.DeserializeObject<Activity>(jsonInput);
                     activity.Timestamp = DateTime.UtcNow.AddSeconds(-2);
-                    context[Constants.Context_UserActivity] = JsonConvert.SerializeObject(activity, new JsonSerializerSettings(){ NullValueHandling = NullValueHandling.Ignore});
+                    context[Constants.Context_UserActivity] = JsonConvert.SerializeObject(activity, new JsonSerializerSettings() { NullValueHandling = NullValueHandling.Ignore });
                 }
             }
         }
@@ -215,14 +96,10 @@ namespace HelperLib
     {
         public override void CheckCondition(object sender, ConditionalEventArgs e)
         {
-            string dataSourceName = e.WebTest.Context["DataSourceName"].ToString();
-            string dataSourceTableName = e.WebTest.Context["DataSourceTableName"].ToString();
-            string dsPath = $"{dataSourceName}.{dataSourceTableName}";
             List<string> fields = e.WebTest.Context["DataFieldsToExtract"].ToString().Split(',').ToList();
             foreach (var field in fields)
             {
-                //{{Test.TestData#csv.Utterance}}
-                string fieldName = $"{dsPath}.{field}";
+                string fieldName = $"Test.TestData#csv.{field}";
 
                 e.WebTest.Context[field] = e.WebTest.Context[fieldName].ToString().Replace(';', ',');
             }
@@ -240,7 +117,7 @@ namespace HelperLib
             activity.Timestamp = DateTime.UtcNow;
 
             activity.Conversation =
-                new ConversationAccount() {Id = e.WebTest.Context[Constants.Context_ConvId].ToString()};
+                new ConversationAccount() { Id = e.WebTest.Context[Constants.Context_ConvId].ToString() };
             activity.Text = e.WebTest.Context[Constants.Context_Utterance].ToString();
 
             string userId;
@@ -265,7 +142,7 @@ namespace HelperLib
             activity.Type = "message";
 
             string jsonInput = JsonConvert.SerializeObject(activity,
-                new JsonSerializerSettings() {NullValueHandling = NullValueHandling.Ignore});
+                new JsonSerializerSettings() { NullValueHandling = NullValueHandling.Ignore });
             e.WebTest.Context[Constants.Context_UserActivity] = jsonInput;
 
             e.IsMet = true;
@@ -358,7 +235,6 @@ namespace HelperLib
             List<string> fields = e.WebTest.Context["DataFieldsToExtract"].ToString().Split(',').ToList();
             foreach (var field in fields)
             {
-                //{{Test.TestData#csv.Utterance}}
                 string fieldName = $"{dsPath}.{field}";
 
                 e.WebTest.Context[field] = e.WebTest.Context[fieldName].ToString().Replace(';', ',');
@@ -438,14 +314,20 @@ namespace HelperLib
                 LoadTestUserContext loadTestUserContext =
                     e.WebTest.Context["$LoadTestUserContext"] as LoadTestUserContext;
 
-                if (loadTestUserContext.ContainsKey(Constants.Context_ConvId))
+                if (e.WebTest.Context[Constants.Context_ReuseConvId].ToString().Equals("true", StringComparison.OrdinalIgnoreCase))
                 {
-                    e.WebTest.Context[Constants.Context_ConvId] = loadTestUserContext[Constants.Context_ConvId].ToString();
+                    if (loadTestUserContext.ContainsKey(Constants.Context_ConvId))
+                    {
+                        e.WebTest.Context[Constants.Context_ConvId] = loadTestUserContext[Constants.Context_ConvId].ToString();
+                    }
                 }
 
-                if (loadTestUserContext.ContainsKey(Constants.Context_UserId))
+                if (e.WebTest.Context[Constants.Context_ReuseUserId].ToString().Equals("true", StringComparison.OrdinalIgnoreCase))
                 {
-                    e.WebTest.Context[Constants.Context_UserId] = loadTestUserContext[Constants.Context_UserId].ToString();
+                    if (loadTestUserContext.ContainsKey(Constants.Context_UserId))
+                    {
+                        e.WebTest.Context[Constants.Context_UserId] = loadTestUserContext[Constants.Context_UserId].ToString();
+                    }
                 }
 
                 if (loadTestUserContext.ContainsKey(Constants.Context_AccessToken))
@@ -460,18 +342,6 @@ namespace HelperLib
 
                 if (!string.IsNullOrEmpty(Helpers.AccessToken))
                     e.WebTest.Context[Constants.Context_AccessToken] = Helpers.AccessToken;
-            }
-
-            string dataSourceName = e.WebTest.Context["UseDataSource"].ToString();
-            foreach (var ds in e.WebTest.DataSources)
-            {
-                if (ds.Name.Equals(dataSourceName, StringComparison.OrdinalIgnoreCase))
-                {
-                    e.WebTest.MoveDataTableCursor(ds.Name, ds.Tables[0].Name);
-                    e.WebTest.Context["DataSourceName"] = ds.Name;
-                    e.WebTest.Context["DataSourceTableName"] = ds.Tables[0].Name;
-                    break;
-                }
             }
 
             if (!e.WebTest.Context.ContainsKey("JwtToken"))
@@ -494,14 +364,20 @@ namespace HelperLib
                 LoadTestUserContext loadTestUserContext =
                     e.WebTest.Context["$LoadTestUserContext"] as LoadTestUserContext;
 
-                if (e.WebTest.Context.ContainsKey(Constants.Context_ConvId))
+                if (e.WebTest.Context[Constants.Context_ReuseConvId].ToString().Equals("true", StringComparison.OrdinalIgnoreCase))
                 {
-                    loadTestUserContext[Constants.Context_ConvId] = e.WebTest.Context[Constants.Context_ConvId].ToString();
+                    if (e.WebTest.Context.ContainsKey(Constants.Context_ConvId))
+                    {
+                        loadTestUserContext[Constants.Context_ConvId] = e.WebTest.Context[Constants.Context_ConvId].ToString();
+                    }
                 }
 
-                if (e.WebTest.Context.ContainsKey(Constants.Context_UserId))
+                if (e.WebTest.Context[Constants.Context_ReuseUserId].ToString().Equals("true", StringComparison.OrdinalIgnoreCase))
                 {
-                    loadTestUserContext[Constants.Context_UserId] = e.WebTest.Context[Constants.Context_UserId].ToString();
+                    if (e.WebTest.Context.ContainsKey(Constants.Context_UserId))
+                    {
+                        loadTestUserContext[Constants.Context_UserId] = e.WebTest.Context[Constants.Context_UserId].ToString();
+                    }
                 }
 
                 if (e.WebTest.Context.ContainsKey(Constants.Context_AccessToken))
@@ -511,7 +387,11 @@ namespace HelperLib
             }
             else
             {
-                Helpers.ConvId = e.WebTest.Context[Constants.Context_ConvId].ToString();
+                if (e.WebTest.Context[Constants.Context_ReuseConvId].ToString().Equals("true", StringComparison.OrdinalIgnoreCase))
+                {
+                    Helpers.ConvId = e.WebTest.Context[Constants.Context_ConvId].ToString();
+                }
+
                 Helpers.AccessToken = e.WebTest.Context[Constants.Context_AccessToken].ToString();
             }
 
@@ -537,7 +417,6 @@ namespace HelperLib
                 !string.IsNullOrEmpty(e.WebTest.Context[Constants.Context_MessageId].ToString()))
             {
                 string utterance = e.WebTest.Context[Constants.Context_Utterance].ToString();
-                string expectedResult = e.WebTest.Context[Constants.Context_ExpectedResult].ToString();
                 string luisQnA = e.WebTest.Context[Constants.Context_LuisQnA].ToString();
                 string businessArea = e.WebTest.Context[Constants.Context_BusinessArea].ToString();
 
@@ -573,7 +452,7 @@ namespace HelperLib
                     ? Outcome.Pass
                     : Outcome.Fail;
 
-                ReportHelper.WriteLog(convId, utterance, messageId, userId, expectedResult, actual, testStatus, testMatch,
+                ReportHelper.WriteLog(convId, utterance, messageId, userId, string.Empty, actual, testStatus, testMatch,
                     duration, activityCount, businessArea, luisQnA);
             }
         }

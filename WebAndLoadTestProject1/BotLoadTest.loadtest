@@ -3,7 +3,7 @@
   <Scenarios>
     <Scenario Name="Scenario1" DelayBetweenIterations="0" PercentNewUsers="0" IPSwitching="false" TestMixType="PercentageOfTestsStarted" ApplyDistributionToPacingDelay="true" MaxTestIterations="0" DisableDuringWarmup="false" DelayStartTime="0" AllowedAgents="">
       <ThinkProfile Value="0.2" Pattern="NormalDistribution" />
-      <LoadProfile Pattern="Constant" InitialUsers="800" />
+      <LoadProfile Pattern="Constant" InitialUsers="100" />
       <TestMix>
         <TestProfile Name="SendMessagesOnly" Path="sendmessagesonly.webtest" Id="dc1ca76f-9dc6-47de-8da1-2a6e773a4472" Percentage="100" Type="Microsoft.VisualStudio.TestTools.WebStress.DeclarativeWebTestElement, Microsoft.VisualStudio.QualityTools.LoadTest, Version=15.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
       </TestMix>
@@ -421,7 +421,7 @@
     </CounterSet>
   </CounterSets>
   <RunConfigurations>
-    <RunConfiguration Name="Run Settings1" Description="" ResultsStoreType="Database" TimingDetailsStorage="StatisticsOnly" SaveTestLogsOnError="true" SaveTestLogsFrequency="100" MaxErrorDetails="1000" MaxErrorsPerType="1000" MaxThresholdViolations="1000" MaxRequestUrlsReported="1000" UseTestIterations="false" RunDuration="900" WarmupTime="30" CoolDownTime="0" TestIterations="10" WebTestConnectionModel="ConnectionPool" WebTestConnectionPoolSize="1600" SampleRate="15" ValidationLevel="High" SqlTracingConnectString="" SqlTracingConnectStringDisplayValue="" SqlTracingDirectory="" SqlTracingEnabled="false" SqlTracingFileCount="2" SqlTracingRolloverEnabled="true" SqlTracingMinimumDuration="500" RunUnitTestsInAppDomain="true" CoreCount="10" ResourcesRetentionTimeInMinutes="15" AgentDiagnosticsLevel="Warning">
+    <RunConfiguration Name="Run Settings1" Description="" ResultsStoreType="Database" TimingDetailsStorage="StatisticsOnly" SaveTestLogsOnError="true" SaveTestLogsFrequency="1000" MaxErrorDetails="1000" MaxErrorsPerType="1000" MaxThresholdViolations="1000" MaxRequestUrlsReported="1000" UseTestIterations="false" RunDuration="900" WarmupTime="30" CoolDownTime="0" TestIterations="10" WebTestConnectionModel="ConnectionPool" WebTestConnectionPoolSize="1600" SampleRate="15" ValidationLevel="High" SqlTracingConnectString="LAs4ogoKlDejg8x3v0dgRWhEPcU60jRe0OqYugw8t9eCSHEcNkpWCLe5K4XC/hqeswYlPfHXEEd8B5QMpsBfG3c45fWyj0j7j7y7zQ7RE02m6LaJny0ZUYaoPxALz1daiu1dpyByvja3qTvkjIPQNg==" SqlTracingConnectStringDisplayValue="Data Source=thirutestdb.database.windows.net;Initial Catalog=perftestlogs;User ID=tsriniv" SqlTracingDirectory="" SqlTracingEnabled="false" SqlTracingFileCount="2" SqlTracingRolloverEnabled="true" SqlTracingMinimumDuration="500" RunUnitTestsInAppDomain="true" CoreCount="10" ResourcesRetentionTimeInMinutes="15" AgentDiagnosticsLevel="Warning">
       <CounterSetMappings>
         <CounterSetMapping ComputerName="[CONTROLLER MACHINE]">
           <CounterSetReferences>

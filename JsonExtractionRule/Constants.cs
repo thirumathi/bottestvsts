@@ -11,6 +11,8 @@ namespace JsonExtractionRule
         public const string Context_BotConnectorBaseUrl = "BotConnectorBaseUrl";
         public const string Context_RetryCount = "RetryCount";
         public const string Context_ConvId = "ConvID";
+        public const string Context_ReuseConvId = "ReuseConvId";
+        public const string Context_ReuseUserId = "ReuseUserId";
         public const string Context_BotResponseReceived = "BotResponseReceived";
         public const string Context_MessageId = "MessageId";
         public const string Context_InstanceId = "instanceId";

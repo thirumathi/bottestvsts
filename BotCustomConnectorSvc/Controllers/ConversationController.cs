@@ -89,16 +89,16 @@ namespace BotCustomConnectorSvc.Controllers
                 activity.Conversation = new ConversationAccount() { Id = conversationId };
                 CacheHelper.WriteConversationActivityToStorage(conversationId, activity);
 
-                if (Helper.PostToBotEnabled && string.IsNullOrEmpty(activity.ReplyToId))
-                {
-                    bool status = await PostToBot(conversationId, activity);
+                //if (Helper.PostToBotEnabled && string.IsNullOrEmpty(activity.ReplyToId))
+                //{
+                //    bool status = await PostToBot(conversationId, activity);
 
-                    if (!status)
-                    {
-                        Response.StatusCode = 500;
-                        return Newtonsoft.Json.JsonConvert.DeserializeObject<object>($"{{\"id\":\"Post to bot failed\"}}");
-                    }
-                }
+                //    if (!status)
+                //    {
+                //        Response.StatusCode = 500;
+                //        return Newtonsoft.Json.JsonConvert.DeserializeObject<object>($"{{\"id\":\"Post to bot failed\"}}");
+                //    }
+                //}
 
                 Response.StatusCode = 200;
                 return Newtonsoft.Json.JsonConvert.DeserializeObject<object>($"{{\"id\":\"{activity.Id}\"}}");
