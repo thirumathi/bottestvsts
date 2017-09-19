@@ -11,18 +11,11 @@ This framework covers web and load testing approaches
 - Action Items
 
 #### BOT Testing basics
-- 3 Step Process
-    - Conversation Initialization
-    - Sending a message to Bot
-	- Bot Response Validation
 - Custom Extraction Rules
     - To extract the following info
 	    - Conversation ID
 	    - Message ID
 	    - BOT ID
-	    - BOT Response Messages
-- Custom Validation Rule
-    - To validate the BOT response against the expected result
 
 #### Test strategy
 - Involves following components
@@ -32,14 +25,10 @@ This framework covers web and load testing approaches
 	- MS APP Auth Services
 
 #### Input Data
-- CSV Files with Message and Expected Results
+- CSV Files with Messages
 
 #### Output
-- Azure Table Storage Data with Response Time
-
-#### Bot Test process – Step 1
-#### Bot Test process – Step 2
-#### Bot Test process – Step 3
+- Azure Table Storage Data with request info
 
 ### Knowing VSTS Web tests
 - Declarative and consists of a series of HTTP requests
